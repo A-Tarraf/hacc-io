@@ -7,29 +7,29 @@
 #include <iostream>
 #include "RestartIO_GLEAN.h"
 
-// #define INCLUDE
+  // #define INCLUDE
 #ifdef INCLUDE
 #include "tmio.h"
 #endif 
 
-// #define SCOREP
+  // #define SCOREP
 #ifdef SCOREP
 #include <scorep/SCOREP_User.h>
 #endif
 
-using namespace std;
+  using namespace std;
 
 
 #ifndef DO_TEST  // if set to 1, a MPI test is done for the async writes and reads
 #define DO_TEST 1
 #endif
 
-// fills the arrays
-void compute(int, int, int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
-// verifies their coontent
-void verify(int, int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
-// replicates array for async mode
-void copydata(int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
+  // fills the arrays
+  void compute(int, int, int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
+  // verifies their coontent
+  void verify(int, int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
+  // replicates array for async mode
+    void copydata(int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
 
 int main(int argc, char *argv[])
 {
@@ -107,8 +107,8 @@ int main(int argc, char *argv[])
     //? set interface for I/O (read & write)
     //? ******************************************
     //rst->Set_POSIX_IO_Interface();
-    // rst->Set_Sync_MPI_IO_Interface();
-    rst->Set_Async_MPI_IO_Interface();
+    rst->Set_Sync_MPI_IO_Interface();
+    //rst->Set_Async_MPI_IO_Interface();
 
     //! sync:  [compute_1][write_1][read_1][verify_1][compute_2][write_2][read_2][verify_2][compute_3][write_3][read_3][verify_3]
     //!
@@ -191,9 +191,7 @@ int main(int argc, char *argv[])
         }
         
         #ifdef INCLUDE
-        iotrace.Summary();
-        // double x = iotrace.Get("aw", "t_end_act");
-        // printf("x is %f",x);
+        tmio::iotrace_summary();
         #endif
     }
 

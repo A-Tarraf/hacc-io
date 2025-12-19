@@ -39,7 +39,7 @@ rst->SetFileDistribution(GLEAN_SINGLE_FILE);
 ```
 
 The file `testHACC_Async_IO_bwlimit.cxx` is similar to `testHACC_Async_IO.cxx`, with the difference that it 
-executes a function called `waste_time` to add more variability during the I/O phases. This was used during experiment with TMIO as described [here](https://github.com/tuda-parallel/TMIO/tree/main/artifacts/cluster24#HACC-IO)
+executes a function called `waste_time` to add more variability during the I/O phases. This was used during the experiment with TMIO as described [here](https://github.com/tuda-parallel/TMIO/tree/main/artifacts/cluster24#modified-hacc-io)
 
 ## Running
 
@@ -71,6 +71,8 @@ make run_with_include2
 # include TMIO statically 
 make run_with_include_static
 ```
+
+Note: Starting with version 0.0.3 of TMIO, version 0.0.2 of HACC-IO is required. 
 
 ## Running
 
