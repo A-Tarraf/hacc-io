@@ -91,6 +91,17 @@ run: sim_clean HACC_ASYNC_IO
 run_with_lib: sim_clean HACC_ASYNC_IO library
 	LD_PRELOAD=./libtmio.so $(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
 
+
+run_zmq: LIBRARY_TARGET := zmq_library
+run_zmq: override CXX_DEBUG := -DINCLUDE=1 $(CXX_DEBUG) 
+run_zmq: CXX_INCLUDE = -I$(TMIO_INC) 
+run_zmq: CXX_MSGPACK = -I$(TMIO_DEP)/msgpack/msgpack-c/include
+run_zmq: INCLUDE_LIB = -lzmq
+run_zmq: clean library $(HACC_IO_ASYNC_FILES)
+	$(MPICXX) $(MPI_CFLAGS) $(HACC_IO_ASYNC_FILES) $(wildcard $(TMIO_BLD)/tmp/*.o) -o  HACC_ASYNC_IO $(CXX_INCLUDE) $(CXX_DEBUG) $(INCLUDE_LIB)
+	$(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
+
+
 run_msgpack: LIBRARY_TARGET := msgpack_library
 run_msgpack: override CXX_DEBUG := -DINCLUDE=1 $(CXX_DEBUG) 
 run_msgpack: CXX_INCLUDE = -I$(TMIO_INC) 
