@@ -7,6 +7,8 @@
 #include <iostream>
 #include "RestartIO_GLEAN.h"
 
+using namespace std;
+
   // #define INCLUDE
 #ifdef INCLUDE
 #include "tmio.h"
@@ -17,11 +19,12 @@
 #include <scorep/SCOREP_User.h>
 #endif
 
-  using namespace std;
-
-
 #ifndef DO_TEST  // if set to 1, a MPI test is done for the async writes and reads
 #define DO_TEST 1
+#endif
+
+#ifdef MALLEABLE
+#include "dmr.h"
 #endif
 
   // fills the arrays
@@ -29,13 +32,20 @@
   // verifies their coontent
   void verify(int, int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
   // replicates array for async mode
-    void copydata(int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
+   void copydata(int64_t, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *, float *, float *, float *, float *, float *, float *, float *, int64_t *, uint16_t *,RestartIO_GLEAN * p = NULL);
+
+#ifdef MALLEABLE
+   void dmr_checkpoint(int, char *, int);
+   void dmr_restart(int, char *, int *);
+   void func3(int, char *);
+#endif
 
 int main(int argc, char *argv[])
 {
     char *fname = 0;
     int numtasks, myrank, status;
-    int runs = 8;
+    int runs = 16;
+	int start = 1;
 
     status = MPI_Init(&argc, &argv);
     if (MPI_SUCCESS != status)
@@ -52,6 +62,22 @@ int main(int argc, char *argv[])
         printf(" USAGE <exec> <particles/rank>  < Full file path>  ");
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
+
+	#ifdef MALLEABLE
+	if (myrank == 0)
+			printf("[MALLEABLE] ---------- ranks: %d --------------\n", numtasks);	
+		char processor_name[MPI_MAX_PROCESSOR_NAME];
+		int proc_length;
+		MPI_Get_processor_name(processor_name, &proc_length);
+	    // DMR_AUTO(dmr_init(argc, argv), (void)NULL, func2(myrank, processor_name), (void)NULL);
+		DMR_AUTO(dmr_init(argc, argv), (void)NULL, dmr_restart(myrank, processor_name, &start), (void)NULL);
+		
+		dmr_set_policy_min_nodes(1);
+        dmr_set_policy_max_nodes(8);
+		if (myrank == 0)
+			printf("[MALLEABLE] DMR initialized with min nodes = 1 and max nodes = 8 ---- ranks: %d\n", numtasks);
+	#endif
+
 
     int64_t num_particles = atoi(argv[1]);
     fname = (char *)malloc(strlen(argv[2]) + 1);
@@ -98,7 +124,6 @@ int main(int argc, char *argv[])
 
 
 
-
     //**********************************
     //* Options                        *
     //**********************************
@@ -137,8 +162,9 @@ int main(int argc, char *argv[])
     if (rst->Get_IO_Interface() == USE_ASYNC_MPIIO)
         runs++;
 
-    for (int loop = 1; loop <= runs; loop++)
+    for (int loop = start; loop <= runs; loop++)
     { 
+
         if (myrank == 0)
             {cout << "\nRun  " << loop << "/" << runs << endl;
             printf("Ellapsed time: %.4f -> %.3f\n", MPI_Wtime(), MPI_Wtime() - time);
@@ -191,8 +217,33 @@ int main(int argc, char *argv[])
         }
         
         #ifdef INCLUDE
-        tmio::iotrace_summary();
+        	tmio::iotrace_summary();
         #endif
+
+		#ifdef MALLEABLE
+			if (loop == runs)
+				break;
+			// works good
+		    // DMRSuggestion suggestion = SLURM4DMR_ROUND_POLICY;
+			//
+			// others
+			// DMRSuggestion suggestion = SLURM4DMR_QUEUE_POLICY
+			// DMRSuggestion suggestion = SLURM4DMR_ROUND_POLICY;
+			// DMRSuggestion suggestion = SHOULD_EXPAND;
+			// dmr_set_reconf_step_inhibitor(1);
+			// 
+			DMRSuggestion suggestion;
+			if (loop < 8)
+				suggestion = SHOULD_STAY;
+			else if (loop < 12)
+				suggestion = SHOULD_EXPAND;
+			else
+				suggestion = SHOULD_SHRINK;
+			dmr_set_policy_min_nodes(1);
+			dmr_set_policy_max_nodes(8);
+			DMR_AUTO(dmr_check(suggestion), dmr_checkpoint(myrank, processor_name, loop), (void)NULL, func3(myrank, processor_name));
+			// DMR_AUTO(dmr_check(suggestion), (void)NULL, (void)NULL, (void)NULL);
+		#endif
     }
 
     rst->Finalize();
@@ -228,6 +279,9 @@ int main(int argc, char *argv[])
     delete[] pid_pre;
     delete[] mask_pre;
 
+	#ifdef MALLEABLE
+	    DMR_AUTO(dmr_finalize(), (void)NULL, (void)NULL, (void)NULL);
+	#endif 
     MPI_Finalize();
 
     return 0;
@@ -326,3 +380,51 @@ void copydata(int64_t num_particles, float *xx_pre, float *yy_pre, float *zz_pre
         p->test_write();
 #endif
 }
+
+# ifdef MALLEABLE
+void dmr_checkpoint(int rank, char *processor_name, int iteration)
+{
+    // Only rank 0 writes the checkpoint
+    if (rank == 0) {
+        FILE *fp = fopen("checkpoint_all.txt", "w");
+        if (!fp) {
+            perror("fopen");
+            return;
+        }
+
+        fprintf(fp, "Iteration: %d\n", iteration);
+        fclose(fp);
+
+        printf("Rank %d (master) checkpointed iteration %d\n", rank, iteration);
+    }
+
+
+}
+
+
+void dmr_restart(int rank, char *processor_name, int *iter)
+{
+    FILE *fp = fopen("checkpoint_all.txt", "r");
+    if (!fp) {
+        if (rank == 0) perror("fopen");
+        *iter = 0;  // default start if no checkpoint
+    } else {
+        fscanf(fp, "Iteration: %d", iter);
+        fclose(fp);
+    }
+
+    // All ranks synchronize on the same iteration
+    int global_iter = *iter;
+    MPI_Bcast(&global_iter, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    *iter = global_iter + 1; // start from next iteration
+
+    printf("%s rank %d restarted at iteration %d\n",
+           processor_name, rank, *iter);
+}
+
+
+	void func3(int rank, char *processor_name)
+	{
+		printf("%s rank %d func3\n", processor_name, rank);
+	}
+#endif

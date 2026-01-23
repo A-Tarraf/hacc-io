@@ -41,15 +41,26 @@ MPI_RUN_FLAGS =
 
 
 # TMIO Github location and code
-TMIO_REPO = /d/github/TMIO
+TMIO_REPO = /opt/hpc/build/dmr/examples/TMIO
 TMIO_INC  = $(TMIO_REPO)/include
 TMIO_BLD  = $(TMIO_REPO)/build
 TMIO_DEP  = $(TMIO_REPO)/dep
 LIBRARY_TARGET = library
 
+# MALLEABLE ?= 0
+MALLEABLE ?= 1
+ifeq ($(MALLEABLE),1)
+	# For DMR
+	DMRFLAGS 	= -I${DMR_PATH}/include -L${DMR_PATH}/lib -ldmr -O3 -Wall -g
+	DLBFLAGS 	= -I${DLB_HOME}/include -L${DLB_HOME}/lib -ldlb
+	MPI_CFLAGS += $(DMRFLAGS) $(DLBFLAGS)
+	MPI_CFLAGS += -DMALLEABLE
+	MPI_RUN_FLAGS += --allow-run-as-root 
+endif 
 
 ## Build modified HACC in different flavors
-all: HACC_IO HACC_ASYNC_IO HACC_OPEN_CLOSE sim_clean
+# all: HACC_IO HACC_ASYNC_IO HACC_OPEN_CLOSE sim_clean
+all: run_malleable
 
 RestartIO_GLEAN.o:RestartIO_GLEAN.cxx
 	$(MPICXX) $(MPI_CFLAGS) -c RestartIO_GLEAN.cxx  
@@ -86,6 +97,19 @@ HACC_OPEN_CLOSE: $(HACC_OC_FILES)
 ## Run modified HACC-IO
 run: sim_clean HACC_ASYNC_IO
 	$(MPIRUN)  -np $(PROCS) $(MPI_RUN_FLAGS) ./HACC_ASYNC_IO $(N) test_run/mpi   
+
+run_malleable: sim_clean HACC_ASYNC_IO #	execute this in the docker containter with DMR installed
+	sbatch submit_custom_slurm.sh
+
+run_malleable_with_lib: sim_clean HACC_ASYNC_IO library
+	sbatch submit_custom_slurm_lib.sh
+
+run_malleable_with_include2: CXX_INCLUDE = -I$(TMIO_INC)
+run_malleable_with_include2: override CXX_DEBUG := -DINCLUDE=1 $(CXX_DEBUG)
+run_malleable_with_include2: INCLUDE_LIB = -L. -ltmio -Wl,-rpath,$(PWD)
+run_malleable_with_include2: clean library HACC_ASYNC_IO
+	sbatch submit_custom_slurm.sh
+
 
 ## Run modifed HACC-IO with TMIO
 run_with_lib: sim_clean HACC_ASYNC_IO library
@@ -148,8 +172,13 @@ info:
 # -------------------------------------------------------------------
 
 
+
+CLEAN_FILES := *.a *.o a.out core* HACC_IO HACC_ASYNC_IO HACC_OPEN_CLOSE *.jsonl *.json *.msgpack *.bin *.txt
+ifeq ($(MALLEABLE),1)
+	CLEAN_FILES += slurm-*.out slurm-*.err checkpoint_rank*.txt
+endif
 clean: sim_clean
-	@rm -f *.a *.o a.out core* HACC_IO HACC_ASYNC_IO HACC_OPEN_CLOSE *.jsonl *.json *.msgpack *.bin *.txt
+	@rm -f $(CLEAN_FILES)
 
 sim_clean: test_dir
 	@rm -f test_run/*
@@ -320,6 +349,6 @@ M2: sim_clean HACC_ASYNC_IO
 
 
 clean_ALL: clean sim_clean recorder_clean tau_clean scorep_clean strace_clean darshan_clean
-	@rm -rf *.json *.txt *.data
+	@rm -rf *.json *.txt *.data 
 	@echo "--- done ---"
  
