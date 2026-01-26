@@ -19,4 +19,8 @@ NODELIST_WITH_COUNTS=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | awk -v n=
 
 set -x
 
-$DMR_PATH/scripts/dmr_wrapper mpirun --host $NODELIST_WITH_COUNTS ./HACC_ASYNC_IO 1 test_run/mpi 
+$DMR_PATH/scripts/dmr_wrapper mpirun --host $NODELIST_WITH_COUNTS ./HACC_ASYNC_IO 1000000 test_run/mpi 
+
+
+rm -f test_run/mpi* && echo "Deleted MPI files of HACC-IO" 
+cat *_MPI.jsonl > all.jsonl || echo true

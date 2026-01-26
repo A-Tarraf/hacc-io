@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
     int numtasks, myrank, status;
     int runs = 16;
 	int start = 1;
+    double time = 0;
+
 
     status = MPI_Init(&argc, &argv);
     if (MPI_SUCCESS != status)
@@ -153,7 +155,6 @@ int main(int argc, char *argv[])
 
 
 
-    double time = 0;
     //**********************************
     //* Start                          *
     //**********************************
@@ -230,15 +231,19 @@ int main(int argc, char *argv[])
 			// DMRSuggestion suggestion = SLURM4DMR_QUEUE_POLICY
 			// DMRSuggestion suggestion = SLURM4DMR_ROUND_POLICY;
 			// DMRSuggestion suggestion = SHOULD_EXPAND;
-			// dmr_set_reconf_step_inhibitor(1);
+			dmr_set_reconf_step_inhibitor(4);
 			// 
 			DMRSuggestion suggestion;
-			if (loop < 8)
-				suggestion = SHOULD_STAY;
-			else if (loop < 12)
+			if (loop == 5){
 				suggestion = SHOULD_EXPAND;
-			else
+			}
+			else if (loop == 10){
 				suggestion = SHOULD_SHRINK;
+			}
+			else{
+				suggestion = SHOULD_STAY;	
+				// suggestion = SHOULD_SHRINK;
+			}
 			dmr_set_policy_min_nodes(1);
 			dmr_set_policy_max_nodes(8);
 			DMR_AUTO(dmr_check(suggestion), dmr_checkpoint(myrank, processor_name, loop), (void)NULL, func3(myrank, processor_name));

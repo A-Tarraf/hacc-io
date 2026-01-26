@@ -60,7 +60,7 @@ endif
 
 ## Build modified HACC in different flavors
 # all: HACC_IO HACC_ASYNC_IO HACC_OPEN_CLOSE sim_clean
-all: run_malleable
+all: run_malleable_with_include2
 
 RestartIO_GLEAN.o:RestartIO_GLEAN.cxx
 	$(MPICXX) $(MPI_CFLAGS) -c RestartIO_GLEAN.cxx  
@@ -101,11 +101,12 @@ run: sim_clean HACC_ASYNC_IO
 run_malleable: sim_clean HACC_ASYNC_IO #	execute this in the docker containter with DMR installed
 	sbatch submit_custom_slurm.sh
 
+run_malleable_with_lib:  override CXX_DEBUG := -DMALLEABLE=1 $(CXX_DEBUG)
 run_malleable_with_lib: sim_clean HACC_ASYNC_IO library
 	sbatch submit_custom_slurm_lib.sh
 
 run_malleable_with_include2: CXX_INCLUDE = -I$(TMIO_INC)
-run_malleable_with_include2: override CXX_DEBUG := -DINCLUDE=1 $(CXX_DEBUG)
+run_malleable_with_include2: override CXX_DEBUG := "-DINCLUDE=1 -DMALLEABLE=1 $(CXX_DEBUG)"
 run_malleable_with_include2: INCLUDE_LIB = -L. -ltmio -Wl,-rpath,$(PWD)
 run_malleable_with_include2: clean library HACC_ASYNC_IO
 	sbatch submit_custom_slurm.sh
