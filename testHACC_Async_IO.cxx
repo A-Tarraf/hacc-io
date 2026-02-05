@@ -236,9 +236,11 @@ int main(int argc, char *argv[])
 			DMRSuggestion suggestion;
 			if (loop == 5){
 				suggestion = SHOULD_EXPAND;
+			    dmr_set_nodes_next_expand(4);
 			}
 			else if (loop == 10){
 				suggestion = SHOULD_SHRINK;
+			    dmr_set_nodes_next_shrink(4);
 			}
 			else{
 				suggestion = SHOULD_STAY;	
